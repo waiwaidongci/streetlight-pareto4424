@@ -7,7 +7,8 @@ def dataset(item):
 
 
 def run(item, detail=False):
-    item_view = {'id': item.id, 'dataset_id': item.dataset_id, 'name': item.name, 'status': item.status,
+    item_view = {'id': item.id, 'dataset_id': item.dataset_id, 'name': item.name, 'kind': item.kind,
+                 'status': item.status,
                  'author': item.author, 'review': item.review, 'decision': item.decision,
                  'created_at': iso(item.created_at), 'finished_at': iso(item.finished_at),
                  'scheduled_at': iso(item.scheduled_at), 'schedule_id': item.schedule_id,
@@ -15,6 +16,12 @@ def run(item, detail=False):
     if detail:
         item_view.update(params=item.params, result=item.result, review_note=item.review_note)
     return item_view
+
+
+def completion(item):
+    return {'id': item.id, 'completion_id': item.completion_id, 'site_id': item.site_id,
+            'completion_date': item.completion_date.isoformat(), 'author': item.author,
+            'created_at': iso(item.created_at)}
 
 
 def schedule(item):

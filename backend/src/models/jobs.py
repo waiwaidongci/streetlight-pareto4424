@@ -2,7 +2,7 @@ from datetime import datetime
 from sqlalchemy import JSON, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from src.config.database import Base
-from src.constants.enums import Review, Status
+from src.constants.enums import Kind, Review, Status
 from src.utils.time import now
 
 class Schedule(Base):
@@ -27,8 +27,10 @@ class Run(Base):
     schedule_id: Mapped[int | None] = mapped_column(ForeignKey('schedules.id'))
     scheduled_at: Mapped[datetime | None]
     name: Mapped[str] = mapped_column(String(120))
+    kind: Mapped[str] = mapped_column(String(20), default=Kind.CONCENTRATION, server_default=Kind.CONCENTRATION)
     status: Mapped[str] = mapped_column(String(20), default=Status.QUEUED, index=True)
     params: Mapped[dict] = mapped_column(JSON)
+    registry_snapshot: Mapped[list | None] = mapped_column(JSON)
     result: Mapped[dict | None] = mapped_column(JSON)
     error: Mapped[str | None] = mapped_column(String(500))
     export_file: Mapped[str | None] = mapped_column(String(100))

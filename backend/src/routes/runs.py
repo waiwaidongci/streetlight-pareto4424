@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from src.config.database import connection
 from src.config.settings import ARTIFACTS
-from src.constants.enums import Review, Role, Status
+from src.constants.enums import Kind, Review, Role, Status
 from src.controllers.auth import allow, current
 from src.domain.spec import SPEC
 from src.models.identity import User
@@ -12,6 +12,7 @@ from src.models.jobs import Run
 from src.models.source import Dataset
 from src.schemas.requests import ReviewRequest, RunRequest
 from src.services.audit import record
+from src.services.completions import snapshot as registry_snapshot
 from src.services.validation import normalize_params
 from src.utils import views
 from src.utils.wakeup import wake
@@ -36,10 +37,19 @@ def create(body: RunRequest, db: Session = Depends(connection),
            actor: User = Depends(allow(Role.ADMIN, Role.ANALYST))):
     if not db.get(Dataset, body.dataset_id):
         raise HTTPException(404, '找不到指定的数据批次')
-    item = Run(name=body.name, dataset_id=body.dataset_id, params=normalize_params(body.params), author=actor.username)
+    if body.kind not in {item['key'] for item in SPEC['kinds']}:
+        raise ValueError('未知测算类型，请重新打开工作面板')
+    snapshot = None
+    if body.kind == Kind.EFFECT:
+        # 发起时固化完工登记快照；之后晚到的登记只供重新测算。
+        snapshot = registry_snapshot(db)
+        if not snapshot:
+            raise ValueError('完工登记为空，请先在「完工登记」页导入完工记录')
+    item = Run(name=body.name, dataset_id=body.dataset_id, kind=body.kind,
+               params=normalize_params(body.params, body.kind), registry_snapshot=snapshot, author=actor.username)
     db.add(item)
     db.flush()
-    record(db, actor.username, 'analysis.queued', item.id, dataset_id=item.dataset_id)
+    record(db, actor.username, 'analysis.queued', item.id, dataset_id=item.dataset_id, kind=item.kind)
     db.commit()
     wake()
     return views.run(item, detail=True)

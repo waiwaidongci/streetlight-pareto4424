@@ -5,6 +5,10 @@ class Role(StrEnum):
     ANALYST = 'analyst'
     VIEWER = 'viewer'
 
+class Kind(StrEnum):
+    CONCENTRATION = 'concentration'
+    EFFECT = 'effect'
+
 class Status(StrEnum):
     QUEUED = 'queued'
     RUNNING = 'running'

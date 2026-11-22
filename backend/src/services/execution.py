@@ -2,8 +2,9 @@ import logging
 from datetime import date, timedelta
 from sqlalchemy import and_, or_, select
 from src.config.database import Session
-from src.constants.enums import Status
+from src.constants.enums import Kind, Status
 from src.domain.analysis import analyze
+from src.domain.effect import analyze_effect
 from src.domain.spec import SPEC
 from src.models.jobs import Delivery, Run, Schedule
 from src.models.source import Dataset
@@ -58,14 +59,18 @@ def claim():
         job.attempt += 1
         job.lease_until = stamp + timedelta(minutes=3)
         records = db.get(Dataset, job.dataset_id).rows
-        return job.id, job.attempt, records, job.params
+        # 完工登记快照在发起时固化到运行记录，中断恢复仍沿用同一份。
+        return job.id, job.attempt, job.kind, records, job.params, job.registry_snapshot
 
 
 def execute(lease):
-    job_id, attempt, rows, params = lease
+    job_id, attempt, kind, rows, params, snapshot = lease
     result = export = failure = None
     try:
-        result = analyze(rows, params)
+        if kind == Kind.EFFECT:
+            result = analyze_effect(rows, params, snapshot or [])
+        else:
+            result = analyze(rows, params)
         export = write_report(job_id, attempt, result)
     except ValueError as error:
         failure = str(error)[:500]

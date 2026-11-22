@@ -14,9 +14,14 @@ class Upload(Request):
     filename: str = Field(min_length=1, max_length=160)
     csv_text: str = Field(min_length=1, max_length=2_000_000)
 
+class CompletionUpload(Request):
+    filename: str = Field(min_length=1, max_length=160)
+    csv_text: str = Field(min_length=1, max_length=2_000_000)
+
 class RunRequest(Request):
     dataset_id: int = Field(gt=0)
     name: str = Field(min_length=1, max_length=120)
+    kind: str = Field(default='concentration', max_length=20)
     params: dict = Field(default_factory=dict)
 
 class ReviewRequest(Request):

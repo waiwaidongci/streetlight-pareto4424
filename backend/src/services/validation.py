@@ -2,7 +2,8 @@ import csv
 import io
 import math
 from datetime import date
-from src.domain import analysis
+from src.constants.enums import Kind
+from src.domain import analysis, effect
 from src.domain.spec import SPEC
 
 
@@ -72,8 +73,33 @@ def parse_rows(text):
     return rows
 
 
-def normalize_params(params):
-    fields = SPEC['params']
+def normalize_params(params, kind=Kind.CONCENTRATION):
+    fields = SPEC['effect_params'] if kind == Kind.EFFECT else SPEC['params']
     if set(params) - {field['key'] for field in fields}:
         raise ValueError('存在未知运行参数，请重新打开工作面板')
     return {field['key']: cell(field, params.get(field['key'], field['default'])) for field in fields}
+
+
+def parse_completion_rows(text):
+    reader = csv.DictReader(io.StringIO(text.removeprefix('\ufeff'), newline=''), strict=True)
+    fields = SPEC['completion_fields']
+    keys = {field['key'] for field in fields}
+    rows = []
+    try:
+        headers = reader.fieldnames or []
+        if set(headers) != keys or len(headers) != len(set(headers)):
+            raise ValueError('CSV 表头与完工登记字段不符，请下载模板检查列名')
+        for raw in reader:
+            if len(rows) >= 5000:
+                raise ValueError('一次最多导入 5000 条完工登记')
+            try:
+                if None in raw or any(value is None for value in raw.values()):
+                    raise ValueError('工作表的列数与表头不一致')
+                rows.append({field['key']: cell(field, raw.get(field['key'])) for field in fields})
+            except ValueError as error:
+                raise ValueError(f'CSV 第 {reader.line_num} 行 · {error}') from None
+    except csv.Error:
+        raise ValueError(f'CSV 第 {reader.line_num} 行附近格式不正确') from None
+    if not rows:
+        raise ValueError('CSV 至少需要一行完工登记')
+    return effect.validate_completion_rows(rows)

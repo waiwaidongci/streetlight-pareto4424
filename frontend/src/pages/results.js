@@ -2,7 +2,7 @@ import {plot} from '../components/common/chart.js';
 import {feedback} from '../components/common/fields.js';
 import {empty, metrics, panel, pill} from '../components/common/panels.js';
 import {table} from '../components/common/table.js';
-import {REVIEW, STATUS} from '../constants/enums.js';
+import {KIND, REVIEW, STATUS} from '../constants/enums.js';
 import {handler, poll} from '../hooks/action.js';
 import {workspace} from '../stores/workspace.js';
 import {button, el, h, link, p} from '../utils/dom.js';
@@ -11,7 +11,7 @@ import {date, value} from '../utils/format.js';
 export async function results(route, refresh) {
   const {spec,runs,datasets} = workspace;
   const id = route.id || runs[0]?.id;
-  if (!id) return panel(spec.pages[3],empty('还没有可查看的运行结果。','#run','前往运行'));
+  if (!id) return panel(spec.pages[4],empty('还没有可查看的运行结果。','#run','前往运行'));
   const job = await workspace.getRun(id);
   const source = datasets.find(item => item.id === job.dataset_id);
   const message = feedback();
@@ -39,7 +39,9 @@ export async function results(route, refresh) {
     (result.sections || []).map(item=>panel(item.title,p(item.text))),
     result.tables.map(item=>panel(item.title,table(item.columns,item.rows,{caption:item.title}))))
     : panel(job.name,pill(STATUS[job.status],job.status),p(job.error,'feedback'),link('返回调整参数',`#run/${job.dataset_id}`,{class:'quiet'}));
-  const inputs = spec.params.map(param=>el('div',{},el('dt',{},param.label),el('dd',{},value(job.params[param.key]))));
+  const defs = job.kind === 'effect' ? spec.effect_params : spec.params;
+  const inputs = [el('div',{},el('dt',{},'测算类型'),el('dd',{},KIND[job.kind] || job.kind)),
+    ...defs.map(param=>el('div',{},el('dt',{},param.label),el('dd',{},value(job.params[param.key]))))];
   return el('div',{},el('div',{class:'two-col'},el('div',{class:'wide-panel'},analysis),
     el('aside',{class:'sidebar-panel'},panel('运行来源',history,
       source && link(source.name,`#inputs/${source.id}`),p(date(job.finished_at),'subtle'),
